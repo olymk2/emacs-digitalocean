@@ -8,7 +8,11 @@ using this referal link for a perk for bot of us.
 
 [https://m.do.co/c/f05b87f9fec9]
 
-This was written to help me learn some lisp, the code is hopefulyl quite easy to follow as I am not an expert in lisp.
+As usual I accept no responsibility for anything that goes wrong, as always backup in case something goes disastorusly wrong.
+
+This was written to help me learn some lisp, the code is hopefully quite easy to follow as I am not an expert in lisp.
+
+This plugin lets you control your droplets and create new ones, it also allows you to open an eshell to your droplet directly.
 
 * API Access Setup
 First create a token on digitalocean, once created copy the token and set the =digitalocean-token= variable examples below.
@@ -24,4 +28,17 @@ which uses the unix password store https://www.passwordstore.org/ plugin for ema
 #+END_SRC
 
 * Getting started
-All commands are prefixed do/ and are not bound to any keys this is left to the user.
+All commands are prefixed "do/" and are not bound to any keys this is left to the user.
+
+You will likely want to bind these methods to what ever keys you see fit.
+
+#+BEGIN_SRC emacs-lisp
+(do/droplet-open-shell)
+(do/droplet-snapshot)
+(do/droplet-restart)
+(do/droplet-shutdown)
+(do/droplet-startup)
+(do/droplet-destroy)
+(do/droplet-simple-create)
+(do/droplet-create-form)
+#+END_SRC

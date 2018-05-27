@@ -39,26 +39,21 @@
 (eval-when-compile
   (require 'wid-edit))
 
-;;(defcustom do-default-directory nil)
+(defcustom do-default-directory nil
+  "Set the default directory when connecting to a droplet."
+  :type 'string
+  :group 'digitalocean)
 
 (defun do/array-or-nil (value)
-  ;; Helper which will convert strings to a list or nil if an empty string
+  "Helper which will VALUE to a list or nil if empty."
   (if (= (length value) 0)
       nil
       (list value)))
 
-(defun do/align-labels (txt size)
-  ;; Helper which will space out strings to be X in length
-  (setq num (length txt))
-  (while (< num size)
-    (setq txt (concat txt " "))
-    (setq num (1+ num)))
-  txt)
-
 
 (defun make-get-request (url)
-  ;; Get request wrapper which auto appends the header tokens 
-  (if (not (boundp 'digitalocean-token)) 
+  "Perform a get request on URL which auto append the header tokens."
+  (if (not (boundp 'digitalocean-token))
       (error "User variable digitalocean-token not set"))
   (request-response-data
    (request url
@@ -73,8 +68,8 @@
 	    :sync t)))
 
 (defun make-post-request (url params)
-  ;; Post request wrapper which auto appends the header tokens 
-  (if (not (boundp 'digitalocean-token)) 
+  "Perform a post request on URL with PARAMS data auto append the header tokens."
+  (if (not (boundp 'digitalocean-token))
       (error "User variable digitalocean-token not set"))
   (request-response-data
    (request url
@@ -85,7 +80,7 @@
 		       ("Content-Type" . "application/json")
 		       ("Authorization" . ,digitalocean-token))
             :success
-            (cl-function (lambda (&key data &allow-other-keys)
+            (cl-function (lambda ()
 			   (message "Post request complete")
                            (kill-buffer "*DO Form*")))
 	    :error
@@ -96,73 +91,68 @@
 
 
 (defun do/fetch-droplets ()
-  ;;Fetch droplet list endpoint 
+  "Fetch droplet list endpoint."
   (make-get-request "https://api.digitalocean.com/v2/droplets"))
 
 (defun do/fetch-images ()
-  ;;Fetch image list endpoint 
+  "Fetch image list endpoint."
   (make-get-request "https://api.digitalocean.com/v2/images"))
 
 (defun do/fetch-regions ()
-  ;;Fetch region list endpoint 
+  "Fetch region list endpoint."
   (make-get-request "https://api.digitalocean.com/v2/regions"))
 
 (defun do/fetch-sizes ()
-  ;;Fetch instance sizes endpoint
+  "Fetch instance sizes endpoint."
   (make-get-request "https://api.digitalocean.com/v2/sizes"))
 
 (defun do/fetch-account-info ()
-  ;;Fetch account info
+  "Fetch account info."
   (make-get-request "https://api.digitalocean.com/v2/account"))
 
+(defun do/create-droplet (values)
+  "Post create droplet data.
+Argument VALUES y."
+  (make-post-request "https://api.digitalocean.com/v2/droplets" values))
+
 (defun do/exec-droplet-action (droplet-id action)
-  ;;Execute the give action on a specific droplet Endpoint
+  "Give a unique DROPLET-ID Execute the given ACTION on the droplet."
   (interactive "sDroplet Id: \nsAction :")
   (make-post-request
    (concat "https://api.digitalocean.com/v2/droplets/" droplet-id "/actions")
    `(("type" . ,action))))
 
 (defun do/fetch-droplet-by-id (droplet-id)
-  ;;Return specific droplet details
+  "Return specific droplet details for DROPLET-ID."
   (interactive "sDroplet Id: ")
   (make-get-request
    (concat "https://api.digitalocean.com/v2/droplets/" droplet-id)))
 
-
 (defun do/format-results (alist &rest keys)
-  ;;Helper function to return only the values we are intrested in
+  "Helper function given ALIST to return only the values matching KEYS."
   (if keys
       (string-join
        (loop for x in keys collect
-	     (format "%s" (cdr (assoc x alist)))) " ")
+	     (format "%s " (cdr (assoc x alist)))))
     (string-join
-     (loop for (k v) in alist collect
-	   (format "%s" v " ")))))
-
-(defun do/format-results-sep (alist &rest keys)
-  (concat "| "
-	  (string-join
-	   (loop for x in keys
-		 collect (format "%s" (cdr (assoc x alist)))
-		 ) " | ") " |"))
+     (loop for item in alist collect
+	   (format "%s " (car item))))))
 
 (defun do/format-response (res head &rest keys)
-  ;; Helper to filter responses into cons format for helm
+  "Helper to filter response RES response root HEAD KEYS to match in the reponse."
   (if (consp (cdr (assoc head res)))
       ;; cons list so pass direct to format lsit
       (progn
 	(cons head (apply 'do/format-results (cdr (assoc head res)) keys)))
     ;; vector array so loop over all items
     (mapcar #'(lambda (x)
-		(cons 
+		(cons
 		 (apply 'do/format-results x keys)
 		 x))
 	    (cdr (assoc head res)))))
 
-
 (defun do/format-response-lines (res head &rest keys)
-  ;; Helper to filter responses into cons format for helm
-
+  "Helper to filter RES response HEAD KEYS into cons format for helm."
   (if (consp (cdr (assoc head res)))
       ;; cons list so pass direct to format lsit
       (progn
@@ -172,237 +162,276 @@
 		(apply 'do/format-results x keys))
 	    (cdr (assoc head res)))))
 
-(defun do/insert-lines (res)
-  (mapcar #'(lambda (x) (insert (concat x "\n"))) res))
-
-
-(defun do/digitalocean-report ()
-  ;; Pull back info from digitalocean account into org buffer
-  (interactive)
-  (with-current-buffer 
-      (get-buffer-create "*Digitalocean*") 
-    (org-mode)
-    (erase-buffer)
-    (insert "#+TITLE: Digitalocean report\n")
-    (insert "* Account Info\n")
-    (do/insert-lines (do/format-response-lines
-    		      (do/fetch-account-info) 'account 'email))
-    (insert "* Droplets\n")
-    (do/insert-lines (do/format-response-lines
-    		      (do/fetch-droplets) 'droplets 'id 'name))
-    (insert "* Sizes\n")
-    (do/insert-lines (do/format-response-lines
-		      (do/fetch-sizes) 'sizes 'vcpus 'memory 'disk 'price_hourly))
-    (insert "* Images\n")
-    (do/insert-lines (do/format-response-lines (do/fetch-images) 'images 'distribution 'name))))
 
 (defun do/digitalocean-droplet-list ()
-  ;; return list of droplets with specific attributes
+  "Return list of droplets with specific attributes."
   (do/format-response (do/fetch-droplets) 'droplets 'id 'name 'status))
 
 (defun do/digitalocean-images-list ()
-  ;; Return list of Image
+  "Return list of Image."
   (do/format-response (do/fetch-images) 'images 'name))
 
 (defun do/digitalocean-regions-list ()
-  ;; Return list of region slugs
+  "Return list of region slugs."
   (do/format-response (do/fetch-regions) 'regions 'slug))
 
 (defun do/digitalocean-sizes-list ()
-  ;; Return list of sizes
+  "Return list of sizes."
   (do/format-response (do/fetch-sizes) 'sizes 'slug ))
-
-(defun do/create-droplet (values)
-  (interactive)
-  (make-post-request
-   "https://api.digitalocean.com/v2/droplets"
-   values))
-
-;;(do/create-droplet-test)
-(defun do/create-droplet-test ()
-  ;; TODO remove in future good for quickly testing
-  (interactive)
-  (make-post-request "https://api.digitalocean.com/v2/droplets"
-		     `(("name" . "elisp")
-		      ("region" . "lon1")
-                      ("size" . "512mb")
-                      ("image" . "ubuntu-16-04-x64"))))
-
-
-(defun do/create-droplet-user ()
-  (interactive)
-  (do/create-droplet 
-   (read-string "Droplet Name: ")
-   (ido-completing-read
-    "Select Region: "
-    (car (list (loop for (k v) in 
-		     (do/format-response (do/fetch-regions) 'regions 'slug)
-		collect k))))
-   (ido-completing-read
-    "Select Size: "
-    (car (list (loop for (k, v) in
-		     (do/format-response (do/fetch-sizes) 'sizes 'slug)
-	  collect k))))
-   (ido-completing-read
-    "Select Image: "
-    (car (list (loop for (k, v) in
-		     (do/format-response (do/fetch-images) 'images 'slug)))))))
-
 
 
 (defun do/get-droplet-id-from-name-str (droplet-name)
+  "Given DROPLET-NAME try and match and return a droplet id as a string."
   (number-to-string (do/get-droplet-id-from-name droplet-name)))
 
 
 (defun do/get-droplet-id-from-name (droplet-name)
-  ;; Give a droplet name, search the droplets and return a matching id
+  "Given DROPLET-NAME try and match and return a droplet id."
    (cdr (assoc 'id
 	       (cdr (assoc droplet-name
 			   (do/format-response
 			    (do/fetch-droplets)
                             'droplets 'name))))))
 
+(defun do/build-ssh-path (droplet-id dir)
+  "Give a DROPLET-ID and DIR build a tramp ssh path."
+  (format "/ssh:root@%s:%s"
+	  (do/get-droplet-ip4-from-id droplet-id) dir))
 
 (defun do/get-droplet-ip4-from-id (droplet-id)
-  ;; Give a droplet id, lookup the droplet and get the ipv4 address
+  "Givne a DROPLET-ID, lookup the droplet and get the ipv4 address."
   (cdr (assoc 'ip_address
 	      (elt (cdr (assoc 'v4
 			  (cdr (assoc 'networks
 				      (cdr (assoc 'droplet
 						  (do/fetch-droplet-by-id droplet-id))))))) 0))))
 
-
-
 (defun do/launch-shell (droplet-name dir)
-  ;;Simple shell wrapper, used with build ssh path to opne a shell with a tramp path
-  (interactive "sShell name: \nDDirectory: ")
+  "Simple shell wrapper, create a sheel using DROPLET-NAME as the buffer at DIR location."
   (let ((default-directory dir))
     (shell (concat "*do-" droplet-name "*"))))
 
-(defun do/build-ssh-path (candidate dir)
-  ;;Give a helm candidiate return a tramp ssh path
-  (format "/ssh:root@%s:%s"
-	  (do/get-droplet-ip4-from-id
-	   (do/get-droplet-id-from-candidate candidate)) dir))
+(defun do/droplet-shell (droplet-id droplet)
+  "Given a DROPLET-ID and DROPLET alist create the dir and sent to launch shell."
+  (do/launch-shell
+   (cdr (assoc 'name (first droplet)))
+   (do/build-ssh-path droplet-id "~/")))
 
 
+(defun do/completing-read-friendly (msg res main key reskey)
+  "Custom completing read which can handle key value completion.
+Given MSG and RES response match the root key MAIN show KEY values.
+match RESKEY and return the match and the dropplet response."
+  (let ((match
+	 (ido-completing-read msg
+			      (mapcar #'(lambda (x)
+					  (cdr (assoc key x)))
+				      (cdr (assoc main res))))))
+    (let ((result (seq-filter
+			   #'(lambda (x)
+			       (if (string= (cdr (assoc key x)) match)
+				   t nil))
+			   (cdr (assoc main res)))))
+
+      (list (cdr
+       (assoc reskey
+	      (nth 0 result)))
+	    (nth 0 result)))))
 
 
+(defun do/completing-read (msg res main key)
+  "Custom completing read which filters an api response.
+Given MSG and RES response match the root key MAIN show KEY values."
+  "helper to generate user selection from api response."
+  (ido-completing-read msg
+		       (mapcar #'(lambda (x)
+				   (cdr (assoc key x)))
+			       (cdr (assoc main res)))))
 
-  ;;(defvar widget-example-repeat)
+(defun do/droplet-completing-read ()
+  "Completing read for droplets."
+  (do/completing-read-friendly "Select Droplet: " (do/fetch-droplets) 'droplets 'name 'id))
 
-  ;;(defun align-spaces (string size)
-  ;;  (setq num (length string))
-  ;;  (while (< num size)
-  ;;    (add-to-list string " ")
-  ;;    (setq num (1+ num)))
-  ;;  string)
+(defun do/image-completing-read ()
+  "Completing read for images."
+  (do/completing-read "Select Images: " (do/fetch-images) 'images 'name))
+
+(defun do/region-completing-read ()
+  "Completing read for regions."
+  (do/completing-read "Select Region: " (do/fetch-regions) 'regions 'slug))
+
+(defun do/sizes-completing-read ()
+  "Completing read for sizes."
+  (do/completing-read "Select Size: " (do/fetch-sizes) 'sizes 'slug))
+
 
 
 (defun do/create-droplet-form ()
-  ;; Implements a form to create a droplet based on the below url`
-  ;; https://developers.digitalocean.com/documentation/v2/#create-a-new-droplet
+  "Implements a form to create a droplet with all options."
   (interactive)
   "Create the widgets from the Widget manual."
   (switch-to-buffer "*DO Form*")
   (kill-all-local-variables)
-  
-  (setq-local do/widgets ())
-  
-  (make-local-variable 'widget-example-repeat)
   (let ((inhibit-read-only t))
     (erase-buffer))
-  (widget-insert "Digitalocean droplet creation\n")
-  (widget-insert (do/align-labels "\nName: " 30))
-  (add-to-list 'do/widgets 
-	       (widget-create 'editable-field
-			      :size 25
-			      "droplet-name"))
-
-  (widget-insert (do/align-labels "\nRegion: " 30))
-  (add-to-list 'do/widgets 
-	       (widget-create 'editable-field
-			      :size 25
-			      "lon1"))
+  (let ((do/widgets ())) 
+  
+    (widget-insert "Digitalocean droplet creation\n")
+    (widget-insert (do/align-labels "\nName: " 30))
+    (push
+     (widget-create 'editable-field
+		    :size 25
+		    "droplet-name")
+     do/widgets)
     
-  (widget-insert (do/align-labels "\nSize: " 30))
-  (add-to-list 'do/widgets 
-	       (widget-create 'editable-field
-			      :size 25
-			      "512mb"))
+    (widget-insert (do/align-labels "\nRegion: " 30))
+    (push
+     (widget-create 'editable-field
+		    :size 25
+		    "lon1")
+     do/widgets)
+    
+    (widget-insert (do/align-labels "\nSize: " 30))
+    (push
+     (widget-create 'editable-field
+		    :size 25
+		    "512mb")
+     do/widgets)
+    
+    (widget-insert (do/align-labels "\nImage: " 30))
+    (push
+     (widget-create 'editable-field
+		    :size 25
+		    "ubuntu-16-04-x64")
+     do/widgets)
+    
+    (widget-insert "\n\nOptional fields")
+    (widget-insert (do/align-labels "\nSSH Keys: " 30))
+    (push
+     (widget-create 'editable-field
+		    :size 25
+		    "")
+     do/widgets)
+    
+    (widget-insert (do/align-labels "\nBackups: " 30))
+    (push
+     (widget-create 'checkbox nil)
+     do/widgets)
+    
+    (widget-insert (do/align-labels "\nEnable IPV6: " 30))
+    (push
+     (widget-create 'checkbox t)
+     do/widgets)
+    
+    (widget-insert (do/align-labels "\nPrivate Networking: " 30))
+    (push
+     (widget-create 'checkbox nil)
+     do/widgets)
+    
+    (widget-insert "\nUser data can be used to run commands at launch")
+    (widget-insert (do/align-labels "\nUser Commands: " 30))
+    (push
+     (widget-create 'text
+		    :size 25
+		    "")
+     do/widgets)
+    
+    (widget-insert (do/align-labels "\nMonitoring: " 30))
+    (push
+     (widget-create 'checkbox t)
+     do/widgets)
+    
+    (widget-insert (do/align-labels "\nVolumes: " 30))
+    (push
+     (widget-create 'editable-field
+		    :size 25
+		    "")
+     do/widgets)
+    
+    (widget-insert (do/align-labels "\nTags: " 30))
+    (push
+     (widget-create 'editable-field
+		    :size 25
+		    "from-emacs")
+     do/widgets)
+    
+    (widget-insert "\n")
+    (widget-create 'push-button
+		   :notify (lambda (&rest ignore)
+			     (let ((values `(("name" . ,(widget-value (nth 11 do/widgets)))
+					     ("region" . ,(widget-value (nth 10 do/widgets)))
+					     ("size" . ,(widget-value (nth 9 do/widgets)))
+					     ("image" . ,(widget-value (nth 8 do/widgets)))
+					     ("ssh_keys" . ,(do/array-or-nil
+							     (widget-value (nth 7 do/widgets))))
+					     ("backups" . ,(widget-value (nth 6 do/widgets)))
+					     ("ipv6" . ,(widget-value (nth 5 do/widgets)))
+					     ("private_networking" . ,(widget-value (nth 4 do/widgets)))
+					     ("user_data" . ,(widget-value (nth 3 do/widgets)))
+					     ("monitoring" . ,(widget-value (nth 2 do/widgets)))
+					     ("volumes" . ,(do/array-or-nil
+							    (widget-value (nth 1 do/widgets))))
+					     ("tags" . ,(do/array-or-nil
+							 (widget-value (nth 0 do/widgets)))))))
+			       (message "Please wait new droplet sent for creation.")
+			       (do/create-droplet values)))
+		   "Create droplet")
+    (widget-insert "\n")
+    (use-local-map widget-keymap)
+    (widget-setup)))
 
-  (widget-insert (do/align-labels "\nImage: " 30))
-  (add-to-list 'do/widgets 
-	       (widget-create 'editable-field
-			      :size 25
-			      "ubuntu-16-04-x64"))
-  
-  (widget-insert "\n\nOptional fields")
-  (widget-insert (do/align-labels "\nSSH Keys: " 30))
-  (add-to-list 'do/widgets
-	       (widget-create 'editable-field
-			      :size 25
-			      ""))
-  
-  (widget-insert (do/align-labels "\nBackups: " 30))
-  (add-to-list 'do/widgets 
-	       (widget-create 'checkbox nil))
-  
-  (widget-insert (do/align-labels "\nEnable IPV6: " 30))
-  (add-to-list 'do/widgets 
-	       (widget-create 'checkbox t))
-  
-  (widget-insert (do/align-labels "\nPrivate Networking: " 30))
-  (add-to-list 'do/widgets 
-	       (widget-create 'checkbox nil))
-  
-  (widget-insert "\nUser data can be used to run commands at launch")
-  (widget-insert (do/align-labels "\nUser Commands: " 30))
-  (add-to-list 'do/widgets 
-	       (widget-create 'text
-			      :size 25
-			      ""))
-  
-  (widget-insert (do/align-labels "\nMonitoring: " 30))
-  (add-to-list 'do/widgets
-	       (widget-create 'checkbox t))
-  
-  (widget-insert (do/align-labels "\nVolumes: " 30))
-  (add-to-list 'do/widgets
-	       (widget-create 'editable-field
-			      :size 25
-			      ""))
-  
-  (widget-insert (do/align-labels "\nTags: " 30))
-  (add-to-list 'do/widgets
-	       (widget-create 'editable-field
-			      :size 25
-			      "from-emacs"))
-  
-  (widget-insert "\n")
-  (widget-create 'push-button
-		 :notify (lambda (&rest ignore) 
-			   (let ((values `(("name" . ,(widget-value (nth 11 do/widgets)))
-					   ("region" . ,(widget-value (nth 10 do/widgets)))
-					   ("size" . ,(widget-value (nth 9 do/widgets)))
-					   ("image" . ,(widget-value (nth 8 do/widgets)))
-					   ("ssh_keys" . ,(do/array-or-nil
-							   (widget-value (nth 7 do/widgets))))
-					   ("backups" . ,(widget-value (nth 6 do/widgets)))
-					   ("ipv6" . ,(widget-value (nth 5 do/widgets)))
-					   ("private_networking" . ,(widget-value (nth 4 do/widgets)))
-					   ("user_data" . ,(widget-value (nth 3 do/widgets)))
-					   ("monitoring" . ,(widget-value (nth 2 do/widgets)))
-					   ("volumes" . ,(do/array-or-nil
-							  (widget-value (nth 1 do/widgets))))
-					   ("tags" . ,(do/array-or-nil
-						       (widget-value (nth 0 do/widgets)))))))
-			     (message "Please wait new droplet sent for creation.")
-			     (do/create-droplet values)))
-			   "Create droplet")
-		 (widget-insert "\n")
-		 (use-local-map widget-keymap)
-		 (widget-setup))
+;;; User droplet endpoints
+(defun do/droplet-open-shell ()
+  "Open a shell for selected droplet."
+  (interactive)
+  (let ((result (do/completing-read-friendly "Select Droplet: " (do/fetch-droplets) 'droplets 'name 'id)))
+  (do/droplet-shell
+   (number-to-string (first result))
+   (last result))))
+(defun do/droplet-snapshot ()
+  "Create a snapshot of the selected droplet."
+  (interactive)
+  (do/exec-droplet-action
+   (number-to-string
+    (car (do/completing-read-friendly "Select Droplet: " (do/fetch-droplets) 'droplets 'name 'id)))
+   "snapshot"))
+(defun do/droplet-restart ()
+  "Restart the selected droplet."
+  (interactive)
+  (do/exec-droplet-action
+   (number-to-string
+    (car (do/completing-read-friendly "Select Droplet: " (do/fetch-droplets) 'droplets 'name 'id)))
+   "reboot"))
+(defun do/droplet-shutdown ()
+  "Shutdown the selected droplet."
+  (interactive)
+  (do/exec-droplet-action
+   (number-to-string
+    (car (do/completing-read-friendly "Select Droplet: " (do/fetch-droplets) 'droplets 'name 'id)))
+   "power_off"))
+(defun do/droplet-startup ()
+  "Start the selected droplet."
+  (interactive)
+  (do/exec-droplet-action
+   (number-to-string
+    (car (do/completing-read-friendly "Select Droplet: " (do/fetch-droplets) 'droplets 'name 'id)))
+   "power_on"))
+(defun do/droplet-destroy ()
+  "Destroy the selected droplet."
+  (interactive)
+  (do/exec-droplet-action
+   (number-to-string
+    (car (do/completing-read-friendly "Select Droplet: " (do/fetch-droplets) 'droplets 'name 'id)))
+   "destroy"))
+(defun do/droplet-simple-create ()
+  "Create a droplet quickly using minimum inputs."
+  (interactive)
+  (do/create-droplet
+   `(("name" . ,(read-string "Droplet name: "))
+     ("region" . ,(car (do/completing-read-friendly "Select Region: " (do/fetch-regions) 'regions 'name 'slug)))
+     ("size" . ,(do/completing-read "Select Size: " (do/fetch-sizes) 'sizes 'slug))
+     ("image" . ,(car (do/completing-read-friendly "Select Image: " (do/fetch-images) 'images 'name 'slug))))))
+
 
 ;;; (Features)
 (provide 'digitalocean)
