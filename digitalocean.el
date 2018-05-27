@@ -7,7 +7,7 @@
 ;; Keywords: Processes tools
 ;; Version: 0.1
 ;; Created 27 May 2018
-;; Package-Requires: ((requests "2.5")(emacs "24.3"))
+;; Package-Requires: ((request "2.5")(emacs "24.4"))
 
 ;; This program is free software; you can redistribute it and/or modify
 ;; it under the terms of the GNU General Public License as published by
@@ -41,7 +41,7 @@
   "Digitalocean customization grouping."
   :group 'convenience)
 
-(defcustom do-default-directory nil
+(defcustom digitalocean-default-directory "/"
   "Set the default directory when connecting to a droplet."
   :type 'string
   :group 'digitalocean)
@@ -217,7 +217,7 @@ Argument VALUES y."
   "Given a DROPLET-ID and DROPLET alist create the dir and sent to launch shell."
   (digitalocean-launch-shell
    (cdr (assoc 'name (first droplet)))
-   (digitalocean-build-ssh-path droplet-id "~/")))
+   (digitalocean-build-ssh-path droplet-id digitalocean-default-directory)))
 
 
 (defun digitalocean-completing-read-friendly (msg res main key reskey)
@@ -266,7 +266,13 @@ Given MSG and RES response match the root key MAIN show KEY values."
   "Completing read for sizes."
   (digitalocean-completing-read "Select Size: " (digitalocean-fetch-sizes) 'sizes 'slug))
 
-
+(defun digitalocean-align-labels (txt size)
+  "Helper which will space out a string TXT to be SIZE in length."
+  (let ((num (length txt)))
+    (while (< num size)
+      (setq txt (concat txt " "))
+      (setq num (1+ num)))
+    txt))
 
 (defun digitalocean-create-droplet-form ()
   "Implements a form to create a droplet with all options."
@@ -276,8 +282,7 @@ Given MSG and RES response match the root key MAIN show KEY values."
   (kill-all-local-variables)
   (let ((inhibit-read-only t))
     (erase-buffer))
-  (let ((digitalocean-widgets ())) 
-  
+  (let ((digitalocean-widgets ()))
     (widget-insert "Digitalocean droplet creation\n")
     (widget-insert (digitalocean-align-labels "\nName: " 30))
     (push

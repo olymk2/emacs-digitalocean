@@ -42,3 +42,5 @@ You will likely want to bind these methods to what ever keys you see fit.
 (do/droplet-simple-create)
 (do/droplet-create-form)
 #+END_SRC
+
+You can customize =digitalocean-default-directory= to change the default shell path, usefull when utilized with .dir-locals.
