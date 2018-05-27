@@ -3,11 +3,11 @@
 ;; Copyright (C) 2018  Oliver Marks
 
 ;; Author: Oliver Marks <oly@digitaloctave.com>
-;; URL: https://github.com/olymk2/digitalocean-api
+;; URL: https://github.com/olymk2/emacs-digitalocean
 ;; Keywords: Processes tools
 ;; Version: 0.1
-;; Created 01 July 2018
-;; Package-Requires: ((requests "2.5")(emacs "24.3")(widget ""))
+;; Created 27 May 2018
+;; Package-Requires: ((requests "2.5")(emacs "24.3"))
 
 ;; This program is free software; you can redistribute it and/or modify
 ;; it under the terms of the GNU General Public License as published by
@@ -24,12 +24,10 @@
 
 ;;; Commentary:
 
-;; This provides a set of magit style popups for interacting with your containers.
-;; It wraps docker and docker-compose commands and allows you to select containers and toggle
-;; the various paramters passed to the commands.
+;; This provides a set of functions for working with digitalocean droplets.
+;; It wraps api v2 and allows creation and control of droplets.
+;; It also attempts to build a tramp url to your containers to connect eshell
 
-;; It can be extended to run tests inside containers and comes with some predefined setups, it
-;; should also be easy to add in your own common commands to the interactive popups
 
 ;;; Code:
 
