@@ -33,6 +33,7 @@
 
 (require 'request)
 (require 'widget)
+(require 'cl-lib)
 
 (eval-when-compile
   (require 'wid-edit))
@@ -47,16 +48,14 @@
   :group 'digitalocean)
 
 (defun digitalocean-array-or-nil (value)
-  "Helper which will VALUE to a list or nil if empty."
-  (if (= (length value) 0)
-      nil
-      (list value)))
+  "Helper which will return VALUE to a list or nil if empty."
+  (when value (list value)))
 
 
 (defun digitalocean-make-get-request (url)
   "Perform a get request on URL which auto append the header tokens."
-  (if (not (boundp 'digitalocean-token))
-      (error "User variable digitalocean-token not set"))
+  (unless (boundp 'digitalocean-token)
+    (error "User variable digitalocean-token not set"))
   (request-response-data
    (request url
 	    :parser 'json-read
@@ -71,8 +70,8 @@
 
 (defun digitalocean-make-post-request (url params)
   "Perform a post request on URL with PARAMS data auto append the header tokens."
-  (if (not (boundp 'digitalocean-token))
-      (error "User variable digitalocean-token not set"))
+  (unless (boundp 'digitalocean-token)
+    (error "User variable digitalocean-token not set"))
   (request-response-data
    (request url
 	    :type "POST"
@@ -388,6 +387,7 @@ Given MSG and RES response match the root key MAIN show KEY values."
     (widget-setup)))
 
 ;;; User droplet endpoints
+;;;###autoload
 (defun digitalocean-droplet-open-shell ()
   "Open a shell for selected droplet."
   (interactive)
@@ -397,6 +397,8 @@ Given MSG and RES response match the root key MAIN show KEY values."
   (digitalocean-droplet-shell
    (number-to-string (first result))
    (last result))))
+
+;;;###autoload
 (defun digitalocean-droplet-snapshot ()
   "Create a snapshot of the selected droplet."
   (interactive)
@@ -406,6 +408,8 @@ Given MSG and RES response match the root key MAIN show KEY values."
 	  "Select Droplet: "
           (digitalocean-fetch-droplets) 'droplets 'name 'id)))
    "snapshot"))
+
+;;;###autoload
 (defun digitalocean-droplet-restart ()
   "Restart the selected droplet."
   (interactive)
@@ -415,6 +419,8 @@ Given MSG and RES response match the root key MAIN show KEY values."
 	  "Select Droplet: "
           (digitalocean-fetch-droplets) 'droplets 'name 'id)))
    "reboot"))
+
+;;;###autoload
 (defun digitalocean-droplet-shutdown ()
   "Shutdown the selected droplet."
   (interactive)
@@ -424,6 +430,8 @@ Given MSG and RES response match the root key MAIN show KEY values."
 	  "Select Droplet: "
           (digitalocean-fetch-droplets) 'droplets 'name 'id)))
    "power_off"))
+
+;;;###autoload
 (defun digitalocean-droplet-startup ()
   "Start the selected droplet."
   (interactive)
@@ -433,6 +441,8 @@ Given MSG and RES response match the root key MAIN show KEY values."
 	  "Select Droplet: "
           (digitalocean-fetch-droplets) 'droplets 'name 'id)))
    "power_on"))
+
+;;;###autoload (autoload 'digitalocean-droplet-destroy)
 (defun digitalocean-droplet-destroy ()
   "Destroy the selected droplet."
   (interactive)
@@ -442,6 +452,8 @@ Given MSG and RES response match the root key MAIN show KEY values."
 	  "Select Droplet: "
           (digitalocean-fetch-droplets) 'droplets 'name 'id)))
    "destroy"))
+
+;;;###autoload
 (defun digitalocean-droplet-simple-create ()
   "Create a droplet quickly using minimum inputs."
   (interactive)
