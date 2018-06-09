@@ -33,14 +33,14 @@ All commands are prefixed "do/" and are not bound to any keys this is left to th
 You will likely want to bind these methods to what ever keys you see fit.
 
 #+BEGIN_SRC emacs-lisp
-(do/droplet-open-shell)
-(do/droplet-snapshot)
-(do/droplet-restart)
-(do/droplet-shutdown)
-(do/droplet-startup)
-(do/droplet-destroy)
-(do/droplet-simple-create)
-(do/droplet-create-form)
+(digitalocean-droplet-open-shell)
+(digitalocean-droplet-snapshot)
+(digitalocean-droplet-restart)
+(digitalocean-droplet-shutdown)
+(digitalocean-droplet-startup)
+(digitalocean-droplet-destroy)
+(digitalocean-droplet-simple-create)
+(digitalocean-droplet-create-form)
 #+END_SRC
 
 You can customize =digitalocean-default-directory= to change the default shell path, usefull when utilized with .dir-locals.
